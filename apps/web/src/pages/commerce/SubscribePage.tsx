@@ -1,0 +1,171 @@
+import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
+import { motion } from 'framer-motion'
+import { Check, Zap, Crown, Heart, X } from 'lucide-react'
+import { SUBSCRIPTION_TIERS } from '@/types'
+
+const PLANS = [
+  {
+    id: 'basic' as const,
+    icon: Zap,
+    color: 'text-virens-white',
+    borderColor: 'border-white/10',
+    features: [
+      'Ad-free browsing',
+      'Download subscriber-only content',
+      'Exclusive creator feeds',
+      'Early access to new features',
+    ],
+    notIncluded: ['Priority support', 'Creator analytics', 'Custom profile badge'],
+  },
+  {
+    id: 'pro' as const,
+    icon: Crown,
+    color: 'text-virens-green',
+    borderColor: 'border-virens-green/25',
+    featured: true,
+    features: [
+      'Everything in Basic',
+      'Priority support',
+      'Advanced collection management',
+      'Extended download history',
+      'HD preview downloads',
+    ],
+    notIncluded: ['Creator analytics', 'Custom profile badge'],
+  },
+  {
+    id: 'creator_support' as const,
+    icon: Heart,
+    color: 'text-red-400',
+    borderColor: 'border-red-400/20',
+    features: [
+      'Everything in Pro',
+      'Creator analytics dashboard',
+      'Custom verified badge',
+      'Promoted pin slots per month',
+      'Direct creator support',
+      'Early beta feature access',
+    ],
+    notIncluded: [],
+  },
+]
+
+export default function SubscribePage() {
+  const [selectedGateway, setSelectedGateway] = useState<'paystack' | 'stripe'>('paystack')
+
+  const handleSubscribe = (planId: string) => {
+    // Trigger payment flow
+    console.log('Subscribe to', planId, 'via', selectedGateway)
+  }
+
+  return (
+    <>
+      <Helmet>
+        <title>Subscribe — Virens</title>
+        <meta name="description" content="Upgrade your Virens experience with a subscription plan." />
+      </Helmet>
+
+      <div className="max-w-5xl mx-auto px-4 lg:px-6 py-12 pb-24 lg:pb-12">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="divider-green mx-auto mb-4" />
+          <h1 className="font-display font-bold text-4xl text-virens-white mb-3">
+            Upgrade Your Experience
+          </h1>
+          <p className="text-virens-white-muted max-w-lg mx-auto">
+            Support creators directly. Remove ads. Unlock exclusive content.
+          </p>
+        </div>
+
+        {/* Payment gateway selector */}
+        <div className="flex items-center justify-center gap-3 mb-10">
+          <span className="text-sm text-virens-white-muted">Pay with:</span>
+          {(['paystack', 'stripe'] as const).map((gw) => (
+            <button
+              key={gw}
+              onClick={() => setSelectedGateway(gw)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border
+                ${selectedGateway === gw
+                  ? 'border-virens-green bg-virens-green/12 text-virens-green'
+                  : 'border-white/10 text-virens-white-muted hover:border-white/20'
+                }`}
+            >
+              {gw === 'paystack' ? 'Paystack (₦)' : 'Stripe (Card)'}
+            </button>
+          ))}
+        </div>
+
+        {/* Plans grid */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {PLANS.map(({ id, icon: Icon, color, borderColor, featured, features, notIncluded }, i) => {
+            const tier = SUBSCRIPTION_TIERS[id]
+            return (
+              <motion.div
+                key={id}
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                className={`tier-card border ${borderColor} relative ${featured ? 'featured' : ''}`}
+              >
+                {featured && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <span className="badge-green text-xs font-semibold px-3 py-1">Most Popular</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${color}`}>
+                    <Icon size={20} />
+                  </div>
+                  <div>
+                    <p className="font-display font-bold text-virens-white">{tier.name}</p>
+                    <div className="flex items-end gap-1">
+                      <span className="font-display font-bold text-2xl text-virens-white">
+                        {tier.currency}{tier.price.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-virens-white-muted mb-1">/{tier.interval}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="divider-green mb-4" />
+
+                <ul className="flex flex-col gap-2.5 flex-1">
+                  {features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-virens-white">
+                      <Check size={14} className="text-virens-green mt-0.5 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                  {notIncluded.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm text-virens-white-muted opacity-50">
+                      <X size={14} className="mt-0.5 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleSubscribe(id)}
+                  className={`w-full py-3 rounded-xl text-sm font-semibold font-display transition-all mt-4
+                    ${featured
+                      ? 'btn-primary'
+                      : 'btn-secondary hover:border-white/20'
+                    }`}
+                >
+                  Subscribe — {tier.currency}{tier.price.toLocaleString()}/mo
+                </button>
+              </motion.div>
+            )
+          })}
+        </div>
+
+        {/* Comparison note */}
+        <p className="text-center text-xs text-virens-white-muted mt-8">
+          Cancel anytime. Naira payments via Paystack. International payments via Stripe.
+          Minimum payout for creators: ₦10,000.
+        </p>
+      </div>
+    </>
+  )
+}

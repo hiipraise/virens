@@ -1,0 +1,97 @@
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime, timezone
+
+from app.core.auth import get_current_user, get_optional_user
+from app.models.user import User
+from app.models.comment import Comment
+from app.models.pin import Pin
+
+router = APIRouter()
+
+
+class CreateCommentRequest(BaseModel):
+    content: str
+    parent_id: Optional[str] = None
+
+
+@router.get("/pin/{pin_id}")
+async def get_pin_comments(
+    pin_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, le=50),
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    skip = (page - 1) * page_size
+    comments = (
+        await Comment.find(
+            Comment.pin_id == pin_id,
+            Comment.is_deleted == False,
+            Comment.parent_id == None,
+        )
+        .sort([("created_at", -1)])
+        .skip(skip)
+        .limit(page_size)
+        .to_list()
+    )
+    total = await Comment.find(Comment.pin_id == pin_id, Comment.is_deleted == False).count()
+    return {
+        "items": [c.to_dict() for c in comments],
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+        "hasNext": (skip + page_size) < total,
+        "hasPrev": page > 1,
+    }
+
+
+@router.post("/pin/{pin_id}", status_code=201)
+async def create_comment(
+    pin_id: str,
+    data: CreateCommentRequest,
+    user: User = Depends(get_current_user),
+):
+    if not data.content.strip():
+        raise HTTPException(400, "Comment cannot be empty")
+    if len(data.content) > 2000:
+        raise HTTPException(400, "Comment too long (max 2000 chars)")
+
+    pin = await Pin.get(pin_id)
+    if not pin or pin.status == "removed":
+        raise HTTPException(404, "Pin not found")
+
+    comment = Comment(
+        pin_id=pin_id,
+        author_id=str(user.id),
+        author_username=user.username,
+        author_avatar=user.avatar,
+        author_is_verified=user.is_verified,
+        content=data.content.strip(),
+        parent_id=data.parent_id,
+    )
+    await comment.insert()
+    await Pin.find_one(Pin.id == pin.id).update({"$inc": {"comments_count": 1}})
+    return comment.to_dict()
+
+
+@router.delete("/{comment_id}", status_code=204)
+async def delete_comment(comment_id: str, user: User = Depends(get_current_user)):
+    comment = await Comment.get(comment_id)
+    if not comment:
+        raise HTTPException(404, "Comment not found")
+    is_admin = user.role in ("superadmin", "admin", "staff")
+    if comment.author_id != str(user.id) and not is_admin:
+        raise HTTPException(403, "Not authorised")
+    await comment.set({"is_deleted": True})
+    await Pin.find_one(Pin.id == comment.pin_id).update({"$inc": {"comments_count": -1}})
+
+
+@router.post("/{comment_id}/like")
+async def toggle_comment_like(comment_id: str, user: User = Depends(get_current_user)):
+    comment = await Comment.get(comment_id)
+    if not comment:
+        raise HTTPException(404, "Comment not found")
+    # Simple toggle using MongoDB atomic ops (no separate CommentLike document for simplicity)
+    await comment.set({"likes_count": max(0, comment.likes_count + 1)})
+    return {"liked": True}

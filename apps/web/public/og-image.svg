@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#191414"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#mesh)"/>
+  <defs>
+    <radialGradient id="mesh" cx="40%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#1DB954" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#191414" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Logo mark -->
+  <path d="M560 255L520 280v50l40 24 40-24v-50L560 255z" fill="#1DB954"/>
+  <circle cx="560" cy="305" r="12" fill="#191414"/>
+  <circle cx="560" cy="305" r="6" fill="#1DB954"/>
+  <!-- Wordmark -->
+  <text x="615" y="320" font-family="sans-serif" font-weight="700" font-size="64" fill="#FFFFFF" letter-spacing="-2">Virens</text>
+  <!-- Tagline -->
+  <text x="600" y="365" font-family="sans-serif" font-size="22" fill="#a8a0a0" text-anchor="middle">Visual discovery for creators</text>
+</svg>
