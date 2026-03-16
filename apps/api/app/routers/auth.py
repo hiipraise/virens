@@ -1,3 +1,4 @@
+# app/routers/auth.py
 from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timezone

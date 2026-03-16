@@ -4,9 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import MainLayout from '@/components/layout/MainLayout'
 import AuthLayout from '@/components/layout/AuthLayout'
 import AdminLayout from '@/components/layout/AdminLayout'
-
-// Pages — lazy loaded
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import PageLoader from '@/components/ui/PageLoader'
 
 const FeedPage = lazy(() => import('@/pages/FeedPage'))
@@ -42,17 +40,24 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { initialize, isInitialized } = useAuthStore()
+
+  useEffect(() => {
+    initialize()
+  }, []) // runs once on mount — restores session from httpOnly cookie
+
+  // Hold rendering until we know auth state, prevents flash-redirect to /login
+  if (!isInitialized) return <PageLoader />
+
   return (
     <Suspense fallback={<PageLoader />}>
       <AnimatePresence mode="wait">
         <Routes>
-          {/* Auth routes */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Route>
 
-          {/* Admin routes */}
           <Route
             element={
               <AdminRoute>
@@ -68,7 +73,6 @@ export default function App() {
             <Route path="/admin/revenue" element={<AdminRevenue />} />
           </Route>
 
-          {/* Main app routes */}
           <Route element={<MainLayout />}>
             <Route path="/" element={<FeedPage />} />
             <Route path="/explore" element={<ExplorePage />} />
@@ -78,39 +82,10 @@ export default function App() {
             <Route path="/:username/collections" element={<CollectionsPage />} />
             <Route path="/:username/collections/:collectionId" element={<CollectionDetailPage />} />
 
-            {/* Protected routes */}
-            <Route
-              path="/upload"
-              element={
-                <PrivateRoute>
-                  <UploadPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/subscribe"
-              element={
-                <PrivateRoute>
-                  <SubscribePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/ads"
-              element={
-                <PrivateRoute>
-                  <AdsPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <PrivateRoute>
-                  <SettingsPage />
-                </PrivateRoute>
-              }
-            />
+            <Route path="/upload" element={<PrivateRoute><UploadPage /></PrivateRoute>} />
+            <Route path="/subscribe" element={<PrivateRoute><SubscribePage /></PrivateRoute>} />
+            <Route path="/ads" element={<PrivateRoute><AdsPage /></PrivateRoute>} />
+            <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

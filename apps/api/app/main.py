@@ -1,3 +1,4 @@
+# main.py
 """
 Virens API — Creator-centric visual discovery platform
 FastAPI + MongoDB (Beanie ODM) backend
