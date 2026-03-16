@@ -93,6 +93,28 @@ async def upload_pin(
     return {"pin_id": str(pin.id)}
 
 
+@router.get("/explore")
+async def explore_pins(
+    tag: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 24,
+    current_user: Optional[User] = Depends(get_optional_user),
+):
+    query = {"status": "published"}
+    if tag:
+        query["tags"] = tag
+    skip = (page - 1) * page_size
+    pins = await Pin.find(query).sort([("created_at", -1)]).skip(skip).limit(page_size).to_list()
+    total = await Pin.find(query).count()
+    return {
+        "items": [p.to_dict() for p in pins],
+        "total": total,
+        "page": page,
+        "pageSize": page_size,
+        "hasNext": (skip + page_size) < total,
+        "hasPrev": page > 1,
+    }
+
 @router.get("/{pin_id}")
 async def get_pin(pin_id: str, current_user: Optional[User] = Depends(get_optional_user)):
     pin = await Pin.get(pin_id)
@@ -179,28 +201,6 @@ async def request_download(pin_id: str, user: User = Depends(get_current_user)):
     await Pin.find_one(Pin.id == pin_id).update({"$inc": {"downloads_count": 1}})
     return {"download_url": pin.media_url}
 
-
-@router.get("/explore")
-async def explore_pins(
-    tag: Optional[str] = None,
-    page: int = 1,
-    page_size: int = 24,
-    current_user: Optional[User] = Depends(get_optional_user),
-):
-    query = {"status": "published"}
-    if tag:
-        query["tags"] = tag
-    skip = (page - 1) * page_size
-    pins = await Pin.find(query).sort([("created_at", -1)]).skip(skip).limit(page_size).to_list()
-    total = await Pin.find(query).count()
-    return {
-        "items": [p.to_dict() for p in pins],
-        "total": total,
-        "page": page,
-        "pageSize": page_size,
-        "hasNext": (skip + page_size) < total,
-        "hasPrev": page > 1,
-    }
 
 
 @router.delete("/{pin_id}", status_code=204)

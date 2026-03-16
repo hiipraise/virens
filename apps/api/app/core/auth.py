@@ -1,23 +1,33 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import hashlib
+import base64
+
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.core.config import settings
 from app.models.user import User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 bearer = HTTPBearer(auto_error=False)
 
 
+def _prepare_password(password: str) -> str:
+    """SHA-256 hash the password to sidestep bcrypt's 72-byte limit."""
+    digest = hashlib.sha256(password.encode("utf-8")).digest()
+    return base64.b64encode(digest).decode("utf-8")  # always 44 bytes
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    prepared = _prepare_password(password)
+    return bcrypt.hashpw(prepared.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    prepared = _prepare_password(plain)
+    return bcrypt.checkpw(prepared.encode(), hashed.encode())
 
 
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None) -> str:
