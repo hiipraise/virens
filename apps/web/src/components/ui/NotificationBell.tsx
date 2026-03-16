@@ -1,22 +1,23 @@
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Check } from 'lucide-react'
-import { useNotifications } from '@/hooks/useNotifications'
-import { formatRelativeTime } from '@/utils/format'
-import { Avatar } from '@/components/ui/Avatar'
+import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bell, Check } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
+import { formatRelativeTime } from "@/utils/format";
+import { Avatar } from "@/components/ui/Avatar";
 
 export default function NotificationBell() {
-  const [open, setOpen] = useState(false)
-  const { notifications, unreadCount, markAllRead } = useNotifications()
-  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div ref={ref} className="relative">
@@ -28,7 +29,7 @@ export default function NotificationBell() {
         {unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 rounded-full bg-virens-green flex items-center justify-center">
             <span className="text-[9px] font-bold text-virens-black px-0.5">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           </span>
         )}
@@ -69,10 +70,14 @@ export default function NotificationBell() {
                 notifications.slice(0, 20).map((n) => (
                   <div
                     key={n.id}
-                    className={`flex gap-3 px-4 py-3 border-b border-white/4 hover:bg-white/3 transition-colors ${!n.isRead ? 'bg-virens-green/4' : ''}`}
+                    className={`flex gap-3 px-4 py-3 border-b border-white/4 hover:bg-white/3 transition-colors ${!n.isRead ? "bg-virens-green/4" : ""}`}
                   >
                     {n.actorAvatar ? (
-                      <Avatar src={n.actorAvatar} alt={n.actorUsername} size="sm" />
+                      <Avatar
+                        src={n.actorAvatar}
+                        alt={n.actorUsername ?? "User"}
+                        size="sm"
+                      />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-virens-green/20 flex-shrink-0" />
                     )}
@@ -95,5 +100,5 @@ export default function NotificationBell() {
         )}
       </AnimatePresence>
     </div>
-  )
+  );
 }
