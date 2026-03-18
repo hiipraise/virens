@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
 
     # Stripe Price IDs (set in Stripe dashboard)
-    STRIPE_PRICE_ID_BASIC: str = "price_basic_1500"
+    STRIPE_PRICE_ID_BASIC: str = "price_subscription_700"
     STRIPE_PRICE_ID_PRO: str = "price_pro_4500"
     STRIPE_PRICE_ID_CREATOR_SUPPORT: str = "price_creator_9000"
 
@@ -55,13 +55,13 @@ class Settings(BaseSettings):
     MINIMUM_PAYOUT_NGN: int = 10000
 
     # Subscription prices (NGN)
-    SUBSCRIPTION_BASIC_NGN: int = 1500
+    SUBSCRIPTION_BASIC_NGN: int = 700
     SUBSCRIPTION_PRO_NGN: int = 4500
     SUBSCRIPTION_CREATOR_SUPPORT_NGN: int = 9000
 
     # Ad pricing (NGN)
-    AD_MIN_BUDGET_NGN: int = 5000
-    AD_MAX_BUDGET_NGN: int = 50000
+    AD_MIN_BUDGET_NGN: int = 200
+    AD_MAX_BUDGET_NGN: int = 200
 
     @property
     def STRIPE_PRICE_IDS(self) -> Dict[str, str]:

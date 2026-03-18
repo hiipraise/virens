@@ -12,6 +12,9 @@ interface CreateAdModalProps {
   onClose: () => void
 }
 
+const AD_PAYMENT_AMOUNT = 200
+const PENDING_AD_KEY = 'virens.pendingAdDraft'
+
 export default function CreateAdModal({ onClose }: CreateAdModalProps) {
   const qc = useQueryClient()
   const { user } = useAuthStore()
@@ -24,23 +27,39 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
     description: '',
     ctaText: 'Learn More',
     ctaUrl: '',
-    budget: '',
   })
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const mutation = useMutation({
-    mutationFn: () =>
-      apiPost<Ad>('/ads', {
-        ...form,
-        budget: isAdmin ? 0 : parseFloat(form.budget),
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-ads'] })
-      toast.success('Ad campaign created!')
-      onClose()
+    mutationFn: async () => {
+      if (isAdmin) {
+        return apiPost<Ad>('/ads', { ...form, budget: 0 })
+      }
+
+      window.sessionStorage.setItem(PENDING_AD_KEY, JSON.stringify(form))
+      return apiPost<{ authorization_url?: string }>('/payments/initiate', {
+        gateway: 'paystack',
+        type: 'ad_payment',
+        amount: AD_PAYMENT_AMOUNT,
+      })
     },
-    onError: () => toast.error('Failed to create ad'),
+    onSuccess: (data) => {
+      if (isAdmin) {
+        qc.invalidateQueries({ queryKey: ['my-ads'] })
+        toast.success('Ad campaign created!')
+        onClose()
+        return
+      }
+
+      if ('authorization_url' in data && data.authorization_url) {
+        window.location.href = data.authorization_url
+        return
+      }
+
+      toast.error('Unable to start ad payment')
+    },
+    onError: () => toast.error(isAdmin ? 'Failed to create ad' : 'Failed to start ad payment'),
   })
 
   return (
@@ -60,7 +79,6 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
         className="relative w-full max-w-lg glass-card overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
           <div className="flex items-center gap-2">
             <Megaphone size={16} className="text-virens-green" />
@@ -72,7 +90,6 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
         </div>
 
         <div className="p-5 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
-          {/* Target type */}
           <div>
             <label className="block text-xs text-virens-white-muted mb-2 flex items-center gap-1.5">
               <Target size={12} /> Promote
@@ -136,20 +153,13 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
           </div>
 
           {!isAdmin && (
-            <div>
+            <div className="rounded-xl border border-virens-green/15 bg-virens-green/8 p-4">
               <label className="block text-xs text-virens-white-muted mb-1.5 flex items-center gap-1.5">
-                <DollarSign size={12} /> Budget (₦)
+                <DollarSign size={12} /> Campaign fee
               </label>
-              <Input
-                value={form.budget}
-                onChange={(e) => set('budget', e.target.value)}
-                placeholder="Minimum ₦5,000"
-                type="number"
-                min="5000"
-                max="50000"
-              />
-              <p className="text-[10px] text-virens-white-muted mt-1">
-                Promoted Pin: ₦5,000–₦50,000 · Profile: ₦3,000–₦30,000
+              <p className="font-display text-2xl text-virens-white">₦{AD_PAYMENT_AMOUNT}</p>
+              <p className="text-[11px] text-virens-white-muted mt-1">
+                Flat ad payment. No other ad plans are available.
               </p>
             </div>
           )}
@@ -164,11 +174,11 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
         <div className="px-5 pb-5 pt-3 border-t border-white/6">
           <button
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || !form.headline || !form.ctaUrl || (!isAdmin && !form.budget)}
+            disabled={mutation.isPending || !form.targetId || !form.headline || !form.ctaUrl}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <Megaphone size={15} />
-            {mutation.isPending ? 'Creating...' : isAdmin ? 'Launch Campaign' : `Launch — ₦${Number(form.budget || 0).toLocaleString()}`}
+            {mutation.isPending ? 'Processing...' : isAdmin ? 'Launch Campaign' : `Pay ₦${AD_PAYMENT_AMOUNT} & Launch`}
           </button>
         </div>
       </motion.div>

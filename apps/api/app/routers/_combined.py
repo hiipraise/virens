@@ -137,35 +137,43 @@ async def initiate_payment(data: InitiatePaymentRequest, user: User = Depends(ge
     reference = f"VRN-{uuid.uuid4().hex[:12].upper()}"
 
     if data.gateway == "paystack":
+        tier = data.tier or "basic"
+        if data.type == "subscription" and tier != "basic":
+            raise HTTPException(400, "Only the standard subscription plan is available")
+
         tier_prices = {
             "basic": settings.SUBSCRIPTION_BASIC_NGN,
-            "pro": settings.SUBSCRIPTION_PRO_NGN,
-            "creator_support": settings.SUBSCRIPTION_CREATOR_SUPPORT_NGN,
         }
-        amount = data.amount or (tier_prices.get(data.tier or "", 0))
+        amount = settings.AD_MIN_BUDGET_NGN if data.type == "ad_payment" else (data.amount or tier_prices.get(tier, 0))
+        if amount <= 0:
+            raise HTTPException(400, "Invalid payment amount")
+
         result = await paystack_initialize_transaction(
             email=user.email,
             amount_ngn=amount,
             reference=reference,
-            metadata={"user_id": str(user.id), "type": data.type, "tier": data.tier},
+            metadata={"user_id": str(user.id), "type": data.type, "tier": tier},
         )
         return {"authorization_url": result["authorization_url"], "reference": reference, "gateway": "paystack"}
 
     elif data.gateway == "stripe":
+        tier = data.tier or "basic"
+        if data.type != "subscription":
+            raise HTTPException(400, "Stripe checkout is only enabled for subscriptions")
+        if tier != "basic":
+            raise HTTPException(400, "Only the standard subscription plan is available")
         price_ids = {
             "basic": settings.STRIPE_PRICE_IDS.get("basic", ""),
-            "pro": settings.STRIPE_PRICE_IDS.get("pro", ""),
-            "creator_support": settings.STRIPE_PRICE_IDS.get("creator_support", ""),
         }
-        price_id = price_ids.get(data.tier or "", "")
+        price_id = price_ids.get(tier, "")
         if not price_id:
             raise HTTPException(400, "Invalid tier for Stripe")
         result = await stripe_create_checkout_session(
             email=user.email,
             price_id=price_id,
-            success_url="https://virens.app/subscribe?success=1",
-            cancel_url="https://virens.app/subscribe?cancelled=1",
-            metadata={"user_id": str(user.id), "tier": data.tier},
+            success_url="https://virens.app/payments/callback?status=success&type=subscription",
+            cancel_url="https://virens.app/payments/callback?status=cancelled&type=subscription",
+            metadata={"user_id": str(user.id), "tier": tier},
         )
         return result
 
@@ -178,7 +186,8 @@ async def verify_payment(reference: str, user: User = Depends(get_current_user))
     if data.get("status") == "success":
         meta = data.get("metadata", {})
         tier = meta.get("tier")
-        if tier:
+        payment_type = meta.get("type")
+        if payment_type == "subscription" and tier:
             await user.set({"subscription_tier": tier})
             existing_sub = await Subscription.find_one(Subscription.user_id == str(user.id))
             if existing_sub:

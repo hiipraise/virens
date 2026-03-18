@@ -28,13 +28,13 @@ PAYSTACK_HEADERS = {
 
 # Subscription plan codes (create these in Paystack dashboard)
 PAYSTACK_PLAN_CODES = {
-    "basic": "PLN_basic_1500",
+    "basic": "PLN_subscription_700",
     "pro": "PLN_pro_4500",
     "creator_support": "PLN_creator_9000",
 }
 
 STRIPE_PRICE_IDS = {
-    "basic": "price_basic",
+    "basic": "price_subscription_700",
     "pro": "price_pro",
     "creator_support": "price_creator",
 }

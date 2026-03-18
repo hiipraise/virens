@@ -3,9 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
-import { Globe, Lock, ShieldCheck, Flag } from 'lucide-react'
+import { Globe, Lock, Flag } from 'lucide-react'
 import { apiGet } from '@/lib/api'
-import type { User, Pin, PaginatedResponse } from '@/types'
+import type { User, Pin, Collection, PaginatedResponse } from '@/types'
 import { formatNumber } from '@/utils/format'
 import { useAuthStore } from '@/store/authStore'
 import MasonryFeed from '@/components/feed/MasonryFeed'
@@ -44,7 +44,13 @@ export default function ProfilePage() {
         page: 1,
         page_size: 24,
       }),
-    enabled: !!username,
+    enabled: !!username && activeTab !== 'collections',
+  })
+
+  const { data: collectionsData, isLoading: collectionsLoading } = useQuery({
+    queryKey: ['collections', username],
+    queryFn: () => apiGet<Collection[]>(`/users/${username}/collections`),
+    enabled: !!username && activeTab === 'collections',
   })
 
   const isOwner = currentUser?.username === username
@@ -214,12 +220,50 @@ export default function ProfilePage() {
                 ))}
               </div>
 
-              <MasonryFeed
-                pins={pinsData?.items ?? []}
-                isLoading={pinsLoading}
-                showAds={false}
-                emptyMessage={`No ${activeTab} yet.`}
-              />
+              {activeTab === 'collections' ? (
+                collectionsLoading ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="h-40 rounded-2xl shimmer-loading" />
+                    ))}
+                  </div>
+                ) : !collectionsData?.length ? (
+                  <div className="text-center py-14 text-sm text-virens-white-muted">
+                    No collections yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {collectionsData.map((collection) => (
+                      <Link
+                        key={collection.id}
+                        to={`/${username}/collections/${collection.id}`}
+                        className="glass-card overflow-hidden group"
+                      >
+                        <div className="h-28 bg-virens-gray overflow-hidden rounded-t-2xl">
+                          {collection.coverImageUrl && (
+                            <img
+                              src={collection.coverImageUrl}
+                              alt={collection.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <p className="font-semibold text-sm text-virens-white truncate">{collection.name}</p>
+                          <p className="text-xs text-virens-white-muted mt-1">{collection.pinsCount} pins</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <MasonryFeed
+                  pins={pinsData?.items ?? []}
+                  isLoading={pinsLoading}
+                  showAds={false}
+                  emptyMessage={`No ${activeTab} yet.`}
+                />
+              )}
             </>
           )}
         </div>

@@ -18,6 +18,9 @@ export function usePinActions(pinId: string) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['pin', pinId] })
     qc.invalidateQueries({ queryKey: ['feed'] })
+    qc.invalidateQueries({ queryKey: ['profile-pins'] })
+    qc.invalidateQueries({ queryKey: ['collection-pins'] })
+    qc.invalidateQueries({ queryKey: ['collections'] })
   }
 
   const likeMut = useMutation({

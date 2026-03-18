@@ -1,5 +1,5 @@
 export const SUBSCRIPTION_TIERS = {
-  basic: { name: 'Basic', price: 1500, currency: '₦', interval: 'month' },
+  basic: { name: 'Subscription', price: 700, currency: '₦', interval: 'month' },
   pro: { name: 'Pro', price: 4500, currency: '₦', interval: 'month' },
   creator_support: { name: 'Creator Support', price: 9000, currency: '₦', interval: 'month' },
 } as const
@@ -13,8 +13,8 @@ export const ROLE_PERMISSIONS = {
 } as const
 
 export const AD_PRICING = {
-  promoted_pin: { min: 5000, max: 50000, currency: '₦' },
-  promoted_profile: { min: 3000, max: 30000, currency: '₦' },
+  promoted_pin: { min: 200, max: 200, currency: '₦' },
+  promoted_profile: { min: 200, max: 200, currency: '₦' },
 } as const
 
 export const MINIMUM_PAYOUT_NGN = 10000
