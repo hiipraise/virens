@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, User, Globe, Lock, Camera } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -17,6 +17,7 @@ interface EditProfileModalProps {
 export default function EditProfileModal({ onClose }: EditProfileModalProps) {
   const { user, refreshUser } = useAuthStore()
   const qc = useQueryClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
     displayName: user?.displayName || '',
@@ -26,6 +27,20 @@ export default function EditProfileModal({ onClose }: EditProfileModalProps) {
   })
 
   const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }))
+
+  const avatarMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return apiUpload<UserType>('/users/me/avatar', formData)
+    },
+    onSuccess: async () => {
+      await refreshUser()
+      if (user) qc.invalidateQueries({ queryKey: ['profile', user.username] })
+      toast.success('Profile image updated')
+    },
+    onError: () => toast.error('Failed to upload image'),
+  })
 
   const mutation = useMutation({
     mutationFn: () => apiPatch<UserType>('/users/me', {
@@ -77,10 +92,23 @@ export default function EditProfileModal({ onClose }: EditProfileModalProps) {
           <div className="flex items-center gap-4">
             <div className="relative">
               <Avatar src={user.avatar} alt={user.displayName} size="lg" isVerified={user.isVerified} />
-              <button className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-virens-green flex items-center justify-center shadow-green-glow">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-virens-green flex items-center justify-center shadow-green-glow"
+              >
                 <Camera size={12} className="text-virens-black" />
               </button>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) avatarMutation.mutate(file)
+              }}
+            />
             <div>
               <p className="text-sm font-semibold text-virens-white">{user.displayName}</p>
               <p className="text-xs text-virens-white-muted">@{user.username}</p>

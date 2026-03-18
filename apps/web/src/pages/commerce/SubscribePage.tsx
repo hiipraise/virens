@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { Check, Zap, Crown, Heart, X } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
 import { SUBSCRIPTION_TIERS } from '@/types'
+import { apiPost } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 const PLANS = [
   {
@@ -10,12 +13,7 @@ const PLANS = [
     icon: Zap,
     color: 'text-virens-white',
     borderColor: 'border-white/10',
-    features: [
-      'Ad-free browsing',
-      'Download subscriber-only content',
-      'Exclusive creator feeds',
-      'Early access to new features',
-    ],
+    features: ['Ad-free browsing', 'Download subscriber-only content', 'Exclusive creator feeds', 'Early access to new features'],
     notIncluded: ['Priority support', 'Creator analytics', 'Custom profile badge'],
   },
   {
@@ -24,13 +22,7 @@ const PLANS = [
     color: 'text-virens-green',
     borderColor: 'border-virens-green/25',
     featured: true,
-    features: [
-      'Everything in Basic',
-      'Priority support',
-      'Advanced collection management',
-      'Extended download history',
-      'HD preview downloads',
-    ],
+    features: ['Everything in Basic', 'Priority support', 'Advanced collection management', 'Extended download history', 'HD preview downloads'],
     notIncluded: ['Creator analytics', 'Custom profile badge'],
   },
   {
@@ -38,14 +30,7 @@ const PLANS = [
     icon: Heart,
     color: 'text-red-400',
     borderColor: 'border-red-400/20',
-    features: [
-      'Everything in Pro',
-      'Creator analytics dashboard',
-      'Custom verified badge',
-      'Promoted pin slots per month',
-      'Direct creator support',
-      'Early beta feature access',
-    ],
+    features: ['Everything in Pro', 'Creator analytics dashboard', 'Custom verified badge', 'Promoted pin slots per month', 'Direct creator support', 'Early beta feature access'],
     notIncluded: [],
   },
 ]
@@ -53,10 +38,23 @@ const PLANS = [
 export default function SubscribePage() {
   const [selectedGateway, setSelectedGateway] = useState<'paystack' | 'stripe'>('paystack')
 
-  const handleSubscribe = (planId: string) => {
-    // Trigger payment flow
-    console.log('Subscribe to', planId, 'via', selectedGateway)
-  }
+  const mutation = useMutation({
+    mutationFn: (planId: string) =>
+      apiPost<{ authorization_url?: string; url?: string }>('/payments/initiate', {
+        gateway: selectedGateway,
+        type: 'subscription',
+        tier: planId,
+      }),
+    onSuccess: (data) => {
+      const nextUrl = data.authorization_url || data.url
+      if (nextUrl) {
+        window.location.href = nextUrl
+        return
+      }
+      toast.success('Subscription started')
+    },
+    onError: () => toast.error('Unable to start subscription'),
+  })
 
   return (
     <>
@@ -66,7 +64,6 @@ export default function SubscribePage() {
       </Helmet>
 
       <div className="max-w-5xl mx-auto px-4 lg:px-6 py-12 pb-24 lg:pb-12">
-        {/* Header */}
         <div className="text-center mb-12">
           <div className="divider-green mx-auto mb-4" />
           <h1 className="font-display font-bold text-4xl text-virens-white mb-3">
@@ -77,7 +74,6 @@ export default function SubscribePage() {
           </p>
         </div>
 
-        {/* Payment gateway selector */}
         <div className="flex items-center justify-center gap-3 mb-10">
           <span className="text-sm text-virens-white-muted">Pay with:</span>
           {(['paystack', 'stripe'] as const).map((gw) => (
@@ -95,7 +91,6 @@ export default function SubscribePage() {
           ))}
         </div>
 
-        {/* Plans grid */}
         <div className="grid md:grid-cols-3 gap-6">
           {PLANS.map(({ id, icon: Icon, color, borderColor, featured, features, notIncluded }, i) => {
             const tier = SUBSCRIPTION_TIERS[id]
@@ -131,27 +126,25 @@ export default function SubscribePage() {
                 <div className="divider-green mb-4" />
 
                 <ul className="flex flex-col gap-2.5 flex-1">
-                  {features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-virens-white">
+                  {features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-virens-white">
                       <Check size={14} className="text-virens-green mt-0.5 flex-shrink-0" />
-                      {f}
+                      {feature}
                     </li>
                   ))}
-                  {notIncluded.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-virens-white-muted opacity-50">
+                  {notIncluded.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-virens-white-muted opacity-50">
                       <X size={14} className="mt-0.5 flex-shrink-0" />
-                      {f}
+                      {feature}
                     </li>
                   ))}
                 </ul>
 
                 <button
-                  onClick={() => handleSubscribe(id)}
+                  onClick={() => mutation.mutate(id)}
+                  disabled={mutation.isPending}
                   className={`w-full py-3 rounded-xl text-sm font-semibold font-display transition-all mt-4
-                    ${featured
-                      ? 'btn-primary'
-                      : 'btn-secondary hover:border-white/20'
-                    }`}
+                    ${featured ? 'btn-primary' : 'btn-secondary hover:border-white/20'}`}
                 >
                   Subscribe — {tier.currency}{tier.price.toLocaleString()}/mo
                 </button>
@@ -160,7 +153,6 @@ export default function SubscribePage() {
           })}
         </div>
 
-        {/* Comparison note */}
         <p className="text-center text-xs text-virens-white-muted mt-8">
           Cancel anytime. Naira payments via Paystack. International payments via Stripe.
           Minimum payout for creators: ₦10,000.

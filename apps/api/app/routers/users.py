@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from typing import Optional
 from pydantic import BaseModel
 
@@ -8,6 +8,8 @@ from app.models.pin import Pin
 from app.models.collection import Collection
 from app.models.engagement import Like, Repost
 from app.models.follow import Follow
+from app.services.cloudinary_service import upload_media
+from app.services.notification_service import notify_follow
 
 router = APIRouter()
 
@@ -100,6 +102,7 @@ async def follow_user(username: str, user: User = Depends(get_current_user)):
     await Follow(follower_id=str(user.id), following_id=str(target.id)).insert()
     await User.find_one(User.id == target.id).update({"$inc": {"followers_count": 1}})
     await User.find_one(User.id == user.id).update({"$inc": {"following_count": 1}})
+    await notify_follow(user.username, user.avatar or "", str(target.id))
     return {"following": True}
 
 
@@ -123,4 +126,14 @@ async def update_profile(data: UpdateProfileRequest, user: User = Depends(get_cu
         updates["is_private"] = data.isPrivate
     if updates:
         await user.set(updates)
+    return user.to_public_dict()
+
+
+@router.post("/me/avatar")
+async def update_avatar(file: UploadFile = File(...), user: User = Depends(get_current_user)):
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "No file uploaded")
+    upload_result = await upload_media(content, file.content_type or "image/jpeg", file.filename or "avatar")
+    await user.set({"avatar": upload_result["secure_url"]})
     return user.to_public_dict()

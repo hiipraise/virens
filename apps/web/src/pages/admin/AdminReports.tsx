@@ -22,7 +22,7 @@ export default function AdminReports() {
 
   const { data: reports, isLoading } = useQuery({
     queryKey: ['admin-reports', filter],
-    queryFn: () => apiGet<Report[]>('/admin/reports', { status: filter }),
+    queryFn: () => apiGet<{ items: Report[] }>('/admin/reports', { status: filter }),
   })
 
   const resolveMut = useMutation({
@@ -65,12 +65,12 @@ export default function AdminReports() {
             Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="shimmer-loading rounded-2xl h-24" />
             ))
-          ) : !reports?.length ? (
+          ) : !reports?.items?.length ? (
             <div className="glass-card p-12 text-center text-virens-white-muted">
               <CheckCircle size={32} className="mx-auto mb-3 text-virens-green opacity-60" />
               <p>No {filter} reports</p>
             </div>
-          ) : reports.map((report) => (
+          ) : reports.items.map((report) => (
             <div key={report.id} className="glass-card p-4 flex items-start gap-4">
               {/* Priority indicator */}
               <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${report.priority > 7 ? 'bg-red-400' : report.priority > 4 ? 'bg-virens-warning' : 'bg-virens-white-muted'}`} />

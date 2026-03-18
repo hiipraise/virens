@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { motion, AnimatePresence } from 'framer-motion'
 import { User, Lock, Bell, Shield, CreditCard, Building2, Link2, Check, AlertCircle } from 'lucide-react'
+import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { useFeedStore } from '@/store/feedStore'
 import { Toggle } from '@/components/ui/Toggle'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { SUBSCRIPTION_TIERS } from '@/types'
+import { apiPost } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 type Tab = 'profile' | 'privacy' | 'notifications' | 'security' | 'payouts' | 'subscription'
 
@@ -21,9 +24,21 @@ const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
 ]
 
 export default function SettingsPage() {
-  const { user } = useAuthStore()
+  const { user, refreshUser } = useAuthStore()
   const { showSensitiveContent, toggleSensitiveContent, showAIContent, toggleAIContent } = useFeedStore()
   const [tab, setTab] = useState<Tab>('profile')
+  const [bankCode, setBankCode] = useState(user?.payoutBankCode || '')
+  const [accountNumber, setAccountNumber] = useState(user?.payoutAccountNumber || '')
+  const [accountName, setAccountName] = useState(user?.payoutAccountName || '')
+
+  const payoutMutation = useMutation({
+    mutationFn: () => apiPost('/payments/bank-details', { bankCode, accountNumber, accountName }),
+    onSuccess: async () => {
+      await refreshUser()
+      toast.success('Bank details saved')
+    },
+    onError: () => toast.error('Could not save bank details'),
+  })
 
   if (!user) return null
 
@@ -85,10 +100,15 @@ export default function SettingsPage() {
               {tab === 'payouts' && <>
                 <h2 className="font-display font-semibold text-virens-white">Nigerian Bank Account</h2>
                 <p className="text-sm text-virens-white-muted">Payouts via Paystack. Minimum withdrawal: ₦10,000.</p>
-                <Input label="Bank Code" placeholder="e.g. 044" />
-                <Input label="Account Number" maxLength={10} />
-                <Input label="Account Name" />
-                <Button>Save Bank Details</Button>
+                <Input label="Bank Code" placeholder="e.g. 044" value={bankCode} onChange={(e) => setBankCode(e.target.value)} />
+                <Input label="Account Number" maxLength={10} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+                <Input label="Account Name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
+                <Button
+                  onClick={() => payoutMutation.mutate()}
+                  disabled={payoutMutation.isPending || !bankCode || !accountNumber || !accountName}
+                >
+                  Save Bank Details
+                </Button>
                 <div className="border-t border-white/6" />
                 <h2 className="font-display font-semibold text-virens-white">International (Stripe)</h2>
                 <Button variant="secondary">Connect Stripe Account</Button>
