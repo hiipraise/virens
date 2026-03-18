@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timezone
 
 from app.core.auth import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.comment import Comment
 from app.models.pin import Pin
+from app.services.notification_service import notify_comment
 
 router = APIRouter()
 
@@ -24,6 +24,7 @@ async def get_pin_comments(
     current_user: Optional[User] = Depends(get_optional_user),
 ):
     skip = (page - 1) * page_size
+    viewer_id = str(current_user.id) if current_user else None
     comments = (
         await Comment.find(
             Comment.pin_id == pin_id,
@@ -35,9 +36,34 @@ async def get_pin_comments(
         .limit(page_size)
         .to_list()
     )
+    parent_ids = [str(comment.id) for comment in comments]
+    replies = (
+        await Comment.find(
+            Comment.pin_id == pin_id,
+            Comment.is_deleted == False,
+            {"parent_id": {"$in": parent_ids}},
+        )
+        .sort([("created_at", 1)])
+        .to_list()
+        if parent_ids
+        else []
+    )
+
+    replies_by_parent: dict[str, list] = {}
+    for reply in replies:
+        replies_by_parent.setdefault(reply.parent_id or "", []).append(
+            reply.to_dict(viewer_liked=bool(viewer_id and viewer_id in reply.liked_by))
+        )
+
     total = await Comment.find(Comment.pin_id == pin_id, Comment.is_deleted == False).count()
     return {
-        "items": [c.to_dict() for c in comments],
+        "items": [
+            comment.to_dict(
+                viewer_liked=bool(viewer_id and viewer_id in comment.liked_by),
+                replies=replies_by_parent.get(str(comment.id), []),
+            )
+            for comment in comments
+        ],
         "total": total,
         "page": page,
         "pageSize": page_size,
@@ -61,6 +87,12 @@ async def create_comment(
     if not pin or pin.status == "removed":
         raise HTTPException(404, "Pin not found")
 
+    parent = None
+    if data.parent_id:
+        parent = await Comment.get(data.parent_id)
+        if not parent or parent.pin_id != pin_id:
+            raise HTTPException(404, "Parent comment not found")
+
     comment = Comment(
         pin_id=pin_id,
         author_id=str(user.id),
@@ -72,6 +104,13 @@ async def create_comment(
     )
     await comment.insert()
     await Pin.find_one(Pin.id == pin.id).update({"$inc": {"comments_count": 1}})
+
+    recipient_id = pin.creator_id
+    if parent and parent.author_id != str(user.id):
+        recipient_id = parent.author_id
+    if recipient_id != str(user.id):
+        await notify_comment(user.username, user.avatar or "", recipient_id, pin_id)
+
     return comment.to_dict()
 
 
@@ -92,6 +131,21 @@ async def toggle_comment_like(comment_id: str, user: User = Depends(get_current_
     comment = await Comment.get(comment_id)
     if not comment:
         raise HTTPException(404, "Comment not found")
-    # Simple toggle using MongoDB atomic ops (no separate CommentLike document for simplicity)
-    await comment.set({"likes_count": max(0, comment.likes_count + 1)})
+
+    user_id = str(user.id)
+    if user_id in comment.liked_by:
+        await comment.set(
+            {
+                "liked_by": [liked for liked in comment.liked_by if liked != user_id],
+                "likes_count": max(0, comment.likes_count - 1),
+            }
+        )
+        return {"liked": False}
+
+    await comment.set(
+        {
+            "liked_by": [*comment.liked_by, user_id],
+            "likes_count": comment.likes_count + 1,
+        }
+    )
     return {"liked": True}

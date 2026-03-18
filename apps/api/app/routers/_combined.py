@@ -4,7 +4,7 @@ search, tags, ads, payments, admin, analytics
 Each is a standalone FastAPI APIRouter.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone
 import uuid
@@ -180,14 +180,43 @@ async def verify_payment(reference: str, user: User = Depends(get_current_user))
         tier = meta.get("tier")
         if tier:
             await user.set({"subscription_tier": tier})
-            sub = Subscription(
-                user_id=str(user.id),
-                tier=tier,
-                payment_gateway="paystack",
-                gateway_subscription_id=reference,
-            )
-            await sub.insert()
+            existing_sub = await Subscription.find_one(Subscription.user_id == str(user.id))
+            if existing_sub:
+                await existing_sub.set({
+                    "tier": tier,
+                    "status": "active",
+                    "payment_gateway": "paystack",
+                    "gateway_subscription_id": reference,
+                })
+            else:
+                sub = Subscription(
+                    user_id=str(user.id),
+                    tier=tier,
+                    payment_gateway="paystack",
+                    gateway_subscription_id=reference,
+                )
+                await sub.insert()
     return {"status": data.get("status"), "amount": data.get("amount", 0) / 100}
+
+
+class SaveBankDetailsRequest(BaseModel):
+    bankCode: str = Field(min_length=3, max_length=10)
+    accountNumber: str = Field(min_length=10, max_length=10)
+    accountName: str = Field(min_length=2, max_length=120)
+
+
+@payments_router.post("/bank-details")
+async def save_bank_details(data: SaveBankDetailsRequest, user: User = Depends(get_current_user)):
+    await user.set({
+        "payout_bank_code": data.bankCode.strip(),
+        "payout_account_number": data.accountNumber.strip(),
+        "payout_account_name": data.accountName.strip(),
+    })
+    return {
+        "bankCode": data.bankCode.strip(),
+        "accountNumber": data.accountNumber.strip(),
+        "accountName": data.accountName.strip(),
+    }
 
 
 class RequestPayoutRequest(BaseModel):
@@ -224,7 +253,7 @@ async def admin_stats(admin: User = Depends(require_admin)):
         "totalUsers": total_users,
         "totalPins": total_pins,
         "pendingReports": pending_reports,
-        "totalRevenue": 0,
+        "totalRevenue": float(sum(ad.spent for ad in await Ad.find({}).to_list())),
         "activeAds": await Ad.find({"status": "active"}).count(),
         "removedContent": removed_content,
         "appealSuccessRate": 34,
@@ -288,7 +317,14 @@ async def admin_reports_proxy(
     skip = (page - 1) * 30
     reports = await Report.find(query).sort([("priority", -1)]).skip(skip).limit(30).to_list()
     total = await Report.find(query).count()
-    return {"items": [r.to_dict() for r in reports], "total": total}
+    return {
+        "items": [r.to_dict() for r in reports],
+        "total": total,
+        "page": page,
+        "pageSize": 30,
+        "hasNext": skip + 30 < total,
+        "hasPrev": page > 1,
+    }
 
 
 # ── Analytics ─────────────────────────────────────────────────

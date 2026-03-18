@@ -58,6 +58,9 @@ export interface User {
   followingCount: number;
   pinsCount: number;
   credibilityScore: number;
+  payoutBankCode?: string;
+  payoutAccountNumber?: string;
+  payoutAccountName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -126,9 +129,11 @@ export interface Comment {
   content: string;
   author: User;
   pinId: string;
+  parentId?: string;
   likesCount: number;
   isLiked?: boolean;
   isDeleted?: boolean;
+  replies?: Comment[];
   createdAt: string;
 }
 

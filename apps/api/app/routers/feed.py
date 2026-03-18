@@ -4,7 +4,7 @@ from typing import Optional
 from app.core.auth import get_optional_user
 from app.models.user import User
 from app.models.pin import Pin
-from app.models.engagement import Like, Save
+from app.models.engagement import Like, Save, Repost
 from app.models.follow import Follow
 from app.algorithms.recommendation import PersonalisedFeed
 
@@ -57,14 +57,19 @@ async def get_feed(
         pins, total = await engine.get_feed(query, skip, page_size)
 
     # Annotate with engagement state
+    seen_ids = set()
     pin_dicts = []
     for p in pins:
+        pid = str(p.id)
+        if pid in seen_ids:
+            continue
+        seen_ids.add(pid)
         d = p.to_dict()
         if current_user:
             uid = str(current_user.id)
-            pid = str(p.id)
             d["isLiked"] = bool(await Like.find_one(Like.user_id == uid, Like.pin_id == pid))
             d["isSaved"] = bool(await Save.find_one(Save.user_id == uid, Save.pin_id == pid))
+            d["isReposted"] = bool(await Repost.find_one(Repost.user_id == uid, Repost.pin_id == pid))
         pin_dicts.append(d)
 
     return {

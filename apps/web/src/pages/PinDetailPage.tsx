@@ -20,6 +20,7 @@ import { useAuthStore } from '@/store/authStore'
 import ReportModal from '@/components/moderation/ReportModal'
 import SaveToCollectionModal from '@/components/pins/SaveToCollectionModal'
 import CommentSection from '@/components/pins/CommentSection'
+import FollowButton from '@/components/profile/FollowButton'
 
 export default function PinDetailPage() {
   const { pinId } = useParams<{ pinId: string }>()
@@ -40,7 +41,7 @@ export default function PinDetailPage() {
     enabled: !!pinId,
   })
 
-  const { toggleLike, toggleSave, repost } = usePinActions(pinId!)
+  const { toggleLike, repost, share } = usePinActions(pinId!)
 
   if (isLoading || !pin) {
     return (
@@ -57,6 +58,7 @@ export default function PinDetailPage() {
 
   const isProtected = pin.isProtected || pin.screenshotProtection
   const aspectStyle = { aspectRatio: `${pin.originalWidth} / ${pin.originalHeight}` }
+  const isOwnPin = user?.id === pin.creator.id
   const savings =
     pin.originalPrice && pin.salePrice
       ? Math.round(((pin.originalPrice - pin.salePrice) / pin.originalPrice) * 100)
@@ -174,7 +176,7 @@ export default function PinDetailPage() {
                 </div>
                 <span className="text-xs text-virens-white-muted">@{pin.creator.username}</span>
               </div>
-              <span className="text-xs text-virens-green font-medium">Follow</span>
+              {!isOwnPin && <FollowButton username={pin.creator.username} size="sm" />}
             </Link>
 
             {/* Engagement stats */}
@@ -208,7 +210,7 @@ export default function PinDetailPage() {
                 {formatNumber(pin.likesCount)}
               </button>
               <button
-                onClick={toggleSave}
+                onClick={() => setShowSaveModal(true)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all border
                   ${pin.isSaved
                     ? 'bg-virens-green/12 text-virens-green border-virens-green/20'
@@ -229,6 +231,7 @@ export default function PinDetailPage() {
                 <Repeat2 size={16} />
               </button>
               <button
+                onClick={share}
                 className="flex items-center justify-center w-10 h-10 glass rounded-xl text-virens-white-muted border border-white/8 hover:border-white/15 transition-all"
               >
                 <Share2 size={16} />

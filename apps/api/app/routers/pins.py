@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from datetime import datetime, timezone
 import json
@@ -11,6 +12,7 @@ from app.services.cloudinary_service import upload_media
 from app.services.watermark_service import embed_invisible_watermark
 from app.services.recommendation_service import get_related_pins
 from app.algorithms.recommendation import compute_pin_score
+from app.services.notification_service import notify_like, notify_repost, notify
 
 router = APIRouter()
 
@@ -151,8 +153,13 @@ async def toggle_like(pin_id: str, user: User = Depends(get_current_user)):
         await existing.delete()
         await Pin.find_one(Pin.id == pin_id).update({"$inc": {"likes_count": -1}})
         return {"liked": False}
+    pin = await Pin.get(pin_id)
+    if not pin:
+        raise HTTPException(404, "Pin not found")
     await Like(user_id=str(user.id), pin_id=pin_id).insert()
     await Pin.find_one(Pin.id == pin_id).update({"$inc": {"likes_count": 1}})
+    if pin.creator_id != str(user.id):
+        await notify_like(user.username, user.avatar or "", pin.creator_id, pin_id, pin.title)
     return {"liked": True}
 
 
@@ -163,8 +170,20 @@ async def toggle_save(pin_id: str, user: User = Depends(get_current_user)):
         await existing.delete()
         await Pin.find_one(Pin.id == pin_id).update({"$inc": {"saves_count": -1}})
         return {"saved": False}
+    pin = await Pin.get(pin_id)
+    if not pin:
+        raise HTTPException(404, "Pin not found")
     await Save(user_id=str(user.id), pin_id=pin_id).insert()
     await Pin.find_one(Pin.id == pin_id).update({"$inc": {"saves_count": 1}})
+    if pin.creator_id != str(user.id):
+        await notify(
+            pin.creator_id,
+            "save",
+            f"@{user.username} saved your pin \"{pin.title}\"",
+            user.username,
+            user.avatar or "",
+            pin_id,
+        )
     return {"saved": True}
 
 
@@ -180,6 +199,8 @@ async def toggle_repost(pin_id: str, user: User = Depends(get_current_user)):
         raise HTTPException(404, "Pin not found")
     await Repost(user_id=str(user.id), pin_id=pin_id, original_creator_id=pin.creator_id).insert()
     await Pin.find_one(Pin.id == pin_id).update({"$inc": {"reposts_count": 1}})
+    if pin.creator_id != str(user.id):
+        await notify_repost(user.username, user.avatar or "", pin.creator_id, pin_id, pin.title)
     return {"reposted": True}
 
 
@@ -199,7 +220,40 @@ async def request_download(pin_id: str, user: User = Depends(get_current_user)):
         pass
 
     await Pin.find_one(Pin.id == pin_id).update({"$inc": {"downloads_count": 1}})
-    return {"download_url": pin.media_url}
+    return {"download_url": f"/api/v1/pins/{pin_id}/download/file"}
+
+
+@router.get("/{pin_id}/download/file")
+async def download_pin_file(pin_id: str, user: User = Depends(get_current_user)):
+    import httpx
+
+    pin = await Pin.get(pin_id)
+    if not pin:
+        raise HTTPException(404, "Pin not found")
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        upstream = await client.get(pin.media_url)
+
+    if upstream.status_code >= 400:
+        raise HTTPException(502, "Could not fetch asset")
+
+    extension = "jpg" if pin.media_type == "image" else pin.media_type
+    safe_title = (pin.title or "download").replace('"', "")
+    filename = f"{safe_title}.{extension}"
+    return StreamingResponse(
+        iter([upstream.content]),
+        media_type=upstream.headers.get("content-type", "application/octet-stream"),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/{pin_id}/share")
+async def share_pin(pin_id: str, user: User = Depends(get_current_user)):
+    pin = await Pin.get(pin_id)
+    if not pin:
+        raise HTTPException(404, "Pin not found")
+    await Pin.find_one(Pin.id == pin_id).update({"$inc": {"shares_count": 1}})
+    return {"shared": True, "shareUrl": f"/pin/{pin_id}"}
 
 
 

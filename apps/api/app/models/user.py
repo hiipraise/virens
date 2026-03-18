@@ -72,6 +72,9 @@ class User(Document):
             "followingCount": self.following_count,
             "pinsCount": self.pins_count,
             "credibilityScore": self.credibility_score,
+            "payoutBankCode": self.payout_bank_code,
+            "payoutAccountNumber": self.payout_account_number,
+            "payoutAccountName": self.payout_account_name,
             "createdAt": self.created_at.isoformat(),
             "updatedAt": self.updated_at.isoformat(),
         }
