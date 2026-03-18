@@ -28,10 +28,19 @@ export function useCreateCollection() {
 }
 
 export function useSaveToCollection() {
+  const qc = useQueryClient()
+
   return useMutation({
     mutationFn: ({ collectionId, pinId }: { collectionId: string; pinId: string }) =>
       apiPost(`/collections/${collectionId}/pins/${pinId}`),
-    onSuccess: () => toast.success('Saved to collection'),
+    onSuccess: (_, { collectionId }) => {
+      qc.invalidateQueries({ queryKey: ['collections'] })
+      qc.invalidateQueries({ queryKey: ['collection', collectionId] })
+      qc.invalidateQueries({ queryKey: ['collection-pins', collectionId] })
+      qc.invalidateQueries({ queryKey: ['profile-pins'] })
+      qc.invalidateQueries({ queryKey: ['pin'] })
+      toast.success('Saved to collection')
+    },
     onError: () => toast.error('Could not save to collection'),
   })
 }

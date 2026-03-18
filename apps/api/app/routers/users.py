@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from typing import Optional
+from bson import ObjectId
 from pydantic import BaseModel
 
 from app.core.auth import get_current_user, get_optional_user
@@ -46,15 +47,17 @@ async def get_user_pins(
         pins = await Pin.find(query).sort([("created_at", -1)]).skip(skip).limit(page_size).to_list()
 
     elif tab == "liked":
-        likes = await Like.find(Like.user_id == str(profile.id)).skip(skip).limit(page_size).to_list()
-        pin_ids = [l.pin_id for l in likes]
-        pins = await Pin.find({"_id": {"$in": pin_ids}, "status": "published"}).to_list()
+        likes = await Like.find(Like.user_id == str(profile.id)).sort([("created_at", -1)]).skip(skip).limit(page_size).to_list()
+        pin_ids = [ObjectId(l.pin_id) for l in likes if ObjectId.is_valid(l.pin_id)]
+        pin_map = {str(pin.id): pin for pin in await Pin.find({"_id": {"$in": pin_ids}, "status": "published"}).to_list()}
+        pins = [pin_map[l.pin_id] for l in likes if l.pin_id in pin_map]
         total = await Like.find(Like.user_id == str(profile.id)).count()
 
     elif tab == "reposts":
-        reposts = await Repost.find(Repost.user_id == str(profile.id)).skip(skip).limit(page_size).to_list()
-        pin_ids = [r.pin_id for r in reposts]
-        pins = await Pin.find({"_id": {"$in": pin_ids}, "status": "published"}).to_list()
+        reposts = await Repost.find(Repost.user_id == str(profile.id)).sort([("created_at", -1)]).skip(skip).limit(page_size).to_list()
+        pin_ids = [ObjectId(r.pin_id) for r in reposts if ObjectId.is_valid(r.pin_id)]
+        pin_map = {str(pin.id): pin for pin in await Pin.find({"_id": {"$in": pin_ids}, "status": "published"}).to_list()}
+        pins = [pin_map[r.pin_id] for r in reposts if r.pin_id in pin_map]
         total = await Repost.find(Repost.user_id == str(profile.id)).count()
 
     else:

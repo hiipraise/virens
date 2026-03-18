@@ -20,6 +20,7 @@ const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
 const SubscribePage = lazy(() => import('@/pages/commerce/SubscribePage'))
 const AdsPage = lazy(() => import('@/pages/ads/AdsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
+const PaymentCallbackPage = lazy(() => import('@/pages/payments/PaymentCallbackPage'))
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'))
 const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminContent = lazy(() => import('@/pages/admin/AdminContent'))
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/subscribe" element={<PrivateRoute><SubscribePage /></PrivateRoute>} />
             <Route path="/ads" element={<PrivateRoute><AdsPage /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+            <Route path="/payments/callback" element={<PrivateRoute><PaymentCallbackPage /></PrivateRoute>} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />

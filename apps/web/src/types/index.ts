@@ -225,7 +225,7 @@ export interface ApiError {
 }
 
 export const SUBSCRIPTION_TIERS = {
-  basic: { name: "Basic", price: 1500, currency: "₦", interval: "month" },
+  basic: { name: "Subscription", price: 700, currency: "₦", interval: "month" },
   pro: { name: "Pro", price: 4500, currency: "₦", interval: "month" },
   creator_support: {
     name: "Creator Support",
