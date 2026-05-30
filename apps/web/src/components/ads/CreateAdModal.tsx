@@ -39,7 +39,7 @@ export default function CreateAdModal({ onClose }: CreateAdModalProps) {
 
       window.sessionStorage.setItem(PENDING_AD_KEY, JSON.stringify(form))
       return apiPost<{ authorization_url?: string }>('/payments/initiate', {
-        gateway: 'paystack',
+        gateway: 'local_wallet',
         type: 'ad_payment',
         amount: AD_PAYMENT_AMOUNT,
       })

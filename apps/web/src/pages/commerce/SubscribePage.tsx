@@ -15,7 +15,7 @@ const FEATURES = [
 ]
 
 export default function SubscribePage() {
-  const [selectedGateway, setSelectedGateway] = useState<'paystack' | 'stripe'>('paystack')
+  const [selectedGateway, setSelectedGateway] = useState<'local_wallet' | 'local_card'>('local_wallet')
   const tier = SUBSCRIPTION_TIERS.basic
 
   const mutation = useMutation({
@@ -56,7 +56,7 @@ export default function SubscribePage() {
 
         <div className="flex items-center justify-center gap-3 mb-10">
           <span className="text-sm text-virens-white-muted">Pay with:</span>
-          {(['paystack', 'stripe'] as const).map((gw) => (
+          {(['local_wallet', 'local_card'] as const).map((gw) => (
             <button
               key={gw}
               onClick={() => setSelectedGateway(gw)}
@@ -66,7 +66,7 @@ export default function SubscribePage() {
                   : 'border-white/10 text-virens-white-muted hover:border-white/20'
                 }`}
             >
-              {gw === 'paystack' ? 'Paystack (₦)' : 'Stripe (Card)'}
+              {gw === 'local_wallet' ? 'Local Wallet (₦)' : 'Mock Card'}
             </button>
           ))}
         </div>
@@ -117,7 +117,7 @@ export default function SubscribePage() {
         </motion.div>
 
         <p className="text-center text-xs text-virens-white-muted mt-8">
-          One subscription plan only. Monthly billing is ₦700. International card payments are available through Stripe.
+          One subscription plan only. Monthly billing is ₦700. card payments are simulated in-browser.
         </p>
       </div>
     </>
