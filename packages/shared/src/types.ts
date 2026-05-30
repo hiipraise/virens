@@ -134,7 +134,7 @@ export interface Subscription {
   userId: string
   tier: Exclude<SubscriptionTier, 'none'>
   status: 'active' | 'cancelled' | 'past_due' | 'trialing'
-  paymentGateway: 'paystack' | 'stripe'
+  paymentGateway: 'local_wallet' | 'local_card'
   currentPeriodStart: string
   currentPeriodEnd?: string
   cancelAtPeriodEnd: boolean
@@ -147,7 +147,7 @@ export interface Payout {
   amount: number
   currency: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
-  paymentMethod: 'bank_transfer' | 'stripe'
+  paymentMethod: 'bank_transfer' | 'local_card'
   reference: string
   createdAt: string
   completedAt?: string

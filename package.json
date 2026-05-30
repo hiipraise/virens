@@ -2,21 +2,20 @@
   "name": "virens",
   "version": "1.0.0",
   "private": true,
-  "description": "Virens — Creator-centric visual discovery platform",
+  "description": "Virens \u2014 frontend-only creator-centric visual discovery platform",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "type-check": "turbo run type-check",
-    "clean": "turbo run clean",
+    "dev": "turbo run dev --filter=@virens/web",
+    "build": "turbo run build --filter=@virens/web",
+    "lint": "turbo run lint --filter=@virens/web",
+    "type-check": "turbo run type-check --filter=@virens/web",
+    "clean": "turbo run clean --filter=@virens/web",
     "dev:web": "pnpm --filter @virens/web dev",
-    "dev:api": "pnpm --filter @virens/api dev",
     "build:web": "pnpm --filter @virens/web build",
-    "build:all": "turbo run build"
+    "build:all": "pnpm build:web"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

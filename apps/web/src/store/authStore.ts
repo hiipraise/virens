@@ -7,9 +7,9 @@ interface AuthState {
   token: string | null
   isAuthenticated: boolean
   isLoading: boolean
-  isInitialized: boolean   // ← new
+  isInitialized: boolean
 
-  initialize: () => Promise<void>   // ← new
+  initialize: () => Promise<void>
   login: (email: string, password: string) => Promise<void>
   register: (data: RegisterData) => Promise<void>
   logout: () => void
@@ -29,19 +29,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   isAuthenticated: false,
   isLoading: false,
-  isInitialized: false,   // ← new
+  isInitialized: false,
 
   // ─── Called once on app mount ───────────────────────────────────────────────
   initialize: async () => {
     try {
-      // The httpOnly refresh_token cookie is sent automatically (withCredentials)
+      // Local mock session refresh; no cookies, server, or auth provider required.
       const { data: { access_token } } = await api.post('/auth/refresh')
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`
 
       const { data: user } = await api.get('/auth/me')
       set({ token: access_token, user, isAuthenticated: true })
     } catch {
-      // No valid session — stay logged out, that's fine
+      // No local session — stay logged out, that's fine
     } finally {
       set({ isInitialized: true })
     }
