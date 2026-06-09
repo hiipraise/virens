@@ -99,7 +99,7 @@ export default function SettingsPage() {
               </>}
               {tab === 'payouts' && <>
                 <h2 className="font-display font-semibold text-virens-white">Nigerian Bank Account</h2>
-                <p className="text-sm text-virens-white-muted">Payouts via Paystack. Minimum withdrawal: ₦10,000.</p>
+                <p className="text-sm text-virens-white-muted">Payouts are simulated locally. Minimum mock withdrawal: ₦10,000.</p>
                 <Input label="Bank Code" placeholder="e.g. 044" value={bankCode} onChange={(e) => setBankCode(e.target.value)} />
                 <Input label="Account Number" maxLength={10} value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
                 <Input label="Account Name" value={accountName} onChange={(e) => setAccountName(e.target.value)} />
@@ -110,8 +110,8 @@ export default function SettingsPage() {
                   Save Bank Details
                 </Button>
                 <div className="border-t border-white/6" />
-                <h2 className="font-display font-semibold text-virens-white">International (Stripe)</h2>
-                <Button variant="secondary">Connect Stripe Account</Button>
+                <h2 className="font-display font-semibold text-virens-white">Card Simulator</h2>
+                <Button variant="secondary">Connect Mock Card Account</Button>
               </>}
               {tab === 'subscription' && <>
                 <h2 className="font-display font-semibold text-virens-white">Current Plan</h2>

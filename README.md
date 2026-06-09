@@ -1,207 +1,103 @@
-# Virens — Creator-Centric Visual Discovery Platform
+# Virens — Frontend-Only Visual Discovery Platform
 
-> Spotify-inspired design (#1DB954 · #191414 · #FFFFFF) · Monorepo · React + FastAPI + MongoDB
+Virens is a polished creator-centric visual discovery app that runs entirely in the browser. It has no API server, database, authentication provider, payment gateway, cloud storage, or external data dependency.
 
----
+The application ships with realistic mock creators, pins, collections, reports, notifications, ads, payments, uploads, and account flows. Runtime changes are stored in `localStorage`/`sessionStorage`, making the experience self-contained while still feeling like a production product prototype.
 
-## Architecture Overview
+## Architecture
 
 ```
 virens/
 ├── apps/
-│   ├── web/          — React 18 + Vite + TailwindCSS + Framer Motion
-│   └── api/          — Python FastAPI + MongoDB (Beanie ODM)
+│   └── web/          — React 18 + Vite + TailwindCSS + Framer Motion
 ├── packages/
-│   └── shared/       — Shared TypeScript types
+│   └── shared/       — Shared TypeScript constants and types
 ├── docker-compose.yml
-└── turbo.json        — Turborepo pipeline
+└── turbo.json        — Frontend-only Turborepo pipeline
 ```
 
----
+## What “frontend-only” means here
+
+- **Mock API adapter**: `apps/web/src/lib/api.ts` exposes the same helper interface the UI expects, but all routes resolve against local in-browser state.
+- **Local sessions**: login, register, logout, and refresh are simulated with local state rather than cookies, JWTs, or an auth provider.
+- **Client-side uploads**: uploaded files are previewed via browser object URLs and added to the local pin feed.
+- **Simulated payments**: subscription and ad payment flows redirect to an internal callback URL and verify against locally-created payment records.
+- **No remote assets**: seeded media and avatars are generated as inline SVG data URLs; fonts use system fallbacks.
+- **No backend containers**: Docker Compose builds and serves only the static frontend.
 
 ## Quick Start
 
 ### Prerequisites
-- Node 20+ and pnpm 9+
-- Python 3.12+
-- MongoDB 7 (local or Atlas)
-- Redis 7 (local or cloud)
 
-### 1. Clone and Install
+- Node 20+
+- pnpm 9+
+
+### Install
 
 ```bash
-git clone https://github.com/yourorg/virens.git
-cd virens
 pnpm install
 ```
 
-### 2. Configure Environment
+### Develop
 
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-# Fill in your keys
+pnpm dev:web
 ```
 
-### 3. Start (Development)
+Open <http://localhost:3000>.
+
+### Build
 
 ```bash
-# All services via Docker Compose
-docker compose up
-
-# Or individually
-pnpm dev:web     # http://localhost:3000
-pnpm dev:api     # http://localhost:8000
+pnpm build:web
 ```
 
-### 4. API Documentation
+### Docker
 
-When `DEBUG=true`, visit:
-- Swagger UI: http://localhost:8000/docs
-- Redoc: http://localhost:8000/redoc
+```bash
+docker compose up --build
+```
 
----
+The static app is served on <http://localhost:3000>.
 
-## Feature Architecture
+## Demo Accounts
 
-### Content Types
-- **Images** — PNG, JPG, WebP, AVIF (up to 100MB)
-- **Videos** — MP4, WebM, MOV (up to 100MB, 5min)
-- **GIFs** — Animated GIF
+Any email/password can be used because authentication is simulated. Useful seeded usernames/emails include:
 
-All uploads preserve original resolution metadata (`originalWidth`, `originalHeight`, `aspectRatio`).
+| Role | Username | Email |
+| --- | --- | --- |
+| Superadmin | `nova` | `nova@virens.local` |
+| Creator | `miralens` | `miralens@virens.local` |
+| Creator | `kaiworks` | `kaiworks@virens.local` |
+| Creator | `amastudio` | `amastudio@virens.local` |
+| User | `guest` | `guest@virens.local` |
 
-### Digital Asset Management (DAM)
-- **Download Permissions**: `free` | `subscribers_only` | `paid` | `none`
-- **Protected View Mode**: disables right-click, drag-download, applies CSS overlay
-- **Visible Watermark**: username overlaid diagonally on the image
-- **Invisible Watermark**: LSB steganography via `stegano` library — creator ID embedded in pixels
-- **Screenshot Deterrence**: CSS `pointer-events: none` overlay layer
+## Feature Set
 
-### Recommendation Engine (`apps/api/app/algorithms/recommendation.py`)
-"More Like This" scored on:
-| Signal | Weight |
-|--------|--------|
-| Tag overlap (Jaccard) | 35% |
-| Engagement score | 30% |
-| Visual similarity (perceptual hash) | 20% |
-| Creator similarity (followed) | 15% |
+- Responsive discovery feed with For You, Trending, Latest, tags, infinite paging, and masonry layout.
+- Pin details, related content, comments, likes, saves, reposts, shares, and simulated downloads.
+- Creator profiles with pins and collections.
+- Local uploads with metadata, commerce flags, watermark/protection flags, and mock media handling.
+- Collections, notifications, reports, profile editing, payout details, ad campaigns, and subscription flow.
+- Admin dashboards and moderation/user-management views backed by local mock data.
 
-Personalised feed:
-1. Builds weighted tag profile from user's liked pins
-2. Fetches pins by followed creators + top tags
-3. Back-fills with trending if insufficient
+## State Reset
 
-### Report Prioritization (`apps/api/app/algorithms/report_priority.py`)
-Priority 0–10 based on:
-- **Report type**: copyright (9) > plagiarism (8) > harassment (7) > ...
-- **Reporter credibility**: 0–10 score
-- **Verified creator bonus**: +1.5
-- **Repeat reports on same target**: +0.5 per report (max +2.0)
+To reset the app to seeded data, clear site data for the app origin or remove these browser storage keys:
 
-**Repeat Infringer Policy**: 5 strikes → automatic account suspension.
+- `virens.frontend.state.v2`
+- `virens.frontend.session`
+- `virens.pendingAdDraft`
 
-**Appeal System**: Creators can appeal at `POST /v1/reports/appeal/:pin_id`.
+## Scripts
 
-### RBAC Roles
-| Role | Permissions |
-|------|------------|
-| `superadmin` | All permissions, no ad payments |
-| `admin` | Moderation, user management, no ad payments |
-| `staff` | Content review, no ad payments |
-| `creator` | Upload, sell, run ads (paid) |
-| `user` | Browse, engage, subscribe |
-
-### Monetization
-1. **Direct Sales** — Slashed pricing UI (`₦40,000 → ₦12,000 · Save 70%`)
-2. **Subscriptions** — Basic ₦1,500 / Pro ₦4,500 / Creator Support ₦9,000 per month
-3. **Self-serve Ads** — Promoted Pins (₦5,000–₦50,000), Promoted Profile (₦3,000–₦30,000)
-4. **Creator Payouts** — Minimum ₦10,000 via Paystack bank transfer or Stripe
-
-### Payments
-- **Primary**: [Paystack](https://paystack.com) — Naira (₦), Nigerian bank transfers
-- **Secondary**: [Stripe](https://stripe.com) — International card payments
-
-### AI Features (Groq llama-3.1-8b-instant — free tier)
-- Automatic tag suggestion on upload
-- Duplicate image detection (perceptual hash)
-- Copyright similarity scanning
-
-### SEO
-Dynamic `<Helmet>` meta tags per page:
-- Feed: platform-level OG tags
-- Pin: `og:title`, `og:image`, `og:type=article`
-- Profile: `og:type=profile`
-- Collection: `og:image` from cover
-
----
-
-## API Reference (Key Endpoints)
-
-### Auth
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/auth/register` | Create account |
-| POST | `/v1/auth/login` | Login → access_token + httpOnly refresh cookie |
-| POST | `/v1/auth/refresh` | Rotate access token using cookie |
-| GET | `/v1/auth/me` | Current user |
-
-### Pins
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/pins/upload` | Upload pin (multipart) |
-| GET | `/v1/pins/:id` | Get pin + engagement state |
-| GET | `/v1/pins/:id/related` | "More Like This" |
-| POST | `/v1/pins/:id/like` | Toggle like |
-| POST | `/v1/pins/:id/save` | Toggle save |
-| POST | `/v1/pins/:id/repost` | Toggle repost |
-| POST | `/v1/pins/:id/download` | Request download URL |
-| DELETE | `/v1/pins/:id` | Delete pin |
-
-### Feed
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v1/feed?mode=personalized\|trending\|latest` | Paginated feed |
-
-### Users
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v1/users/:username` | Public profile |
-| GET | `/v1/users/:username/pins?tab=pins\|liked\|reposts` | Profile tabs |
-| POST | `/v1/users/:username/follow` | Toggle follow |
-| PATCH | `/v1/users/me` | Update profile |
-
-### Reports
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/reports` | Submit report |
-| POST | `/v1/reports/appeal/:pin_id` | Appeal removal |
-| GET | `/v1/reports` | Admin: list reports |
-
-### Payments
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/v1/payments/initiate` | Start Paystack or Stripe flow |
-| GET | `/v1/payments/verify/:ref` | Verify payment, activate subscription |
-| POST | `/v1/payments/payout` | Request creator payout |
-
----
-
-## Security Notes
-- JWT access tokens stored **in-memory only** (no localStorage)
-- Refresh tokens stored in **httpOnly cookies** (`/v1/auth` path-scoped)
-- Protected media: right-click disabled, drag blocked, CSS overlay, optional canvas rendering
-- Invisible watermarks survive screenshots of original files
-
----
-
-## Transparency Reports
-The admin dashboard publishes periodic moderation stats:
-- Content removed (count + reason breakdown)
-- Appeal success rate
-- Average review time per category
-
----
+```bash
+pnpm dev:web       # Vite dev server
+pnpm build:web     # TypeScript + production build
+pnpm type-check    # TypeScript checks for the frontend
+pnpm lint          # ESLint for the frontend
+```
 
 ## License
+
 MIT © Virens

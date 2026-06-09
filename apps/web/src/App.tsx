@@ -45,7 +45,7 @@ export default function App() {
 
   useEffect(() => {
     initialize()
-  }, []) // runs once on mount — restores session from httpOnly cookie
+  }, []) // runs once on mount — restores the local mock session
 
   // Hold rendering until we know auth state, prevents flash-redirect to /login
   if (!isInitialized) return <PageLoader />

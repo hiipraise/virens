@@ -194,7 +194,7 @@ export interface Subscription {
   currentPeriodStart: string;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
-  paymentGateway: "paystack" | "stripe";
+  paymentGateway: "local_wallet" | "local_card";
 }
 
 export interface Payout {
@@ -203,7 +203,7 @@ export interface Payout {
   amount: number;
   currency: string;
   status: "pending" | "processing" | "completed" | "failed";
-  paymentMethod: "bank_transfer" | "stripe";
+  paymentMethod: "bank_transfer" | "local_card";
   reference: string;
   createdAt: string;
   completedAt?: string;

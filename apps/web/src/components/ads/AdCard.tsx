@@ -1,6 +1,6 @@
 import { ExternalLink, Megaphone } from 'lucide-react'
 
-// Placeholder ad card — in production, ad data is fetched from /api/ads/served
+// Placeholder ad card backed by the same local in-browser mock state as the rest of the app
 export default function AdCard() {
   return (
     <div className="mb-4 rounded-2xl overflow-hidden glass border border-virens-green/10 relative group cursor-pointer">
